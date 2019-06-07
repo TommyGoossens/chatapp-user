@@ -16,18 +16,14 @@ server:
 # = Spring Configuration
 # =======================================
 spring:
-  h2:
-    console:
-      enabled: true
-      path: /h2
   datasource:
-    url: jdbc:h2:mem:database
-    username: sa
-    password:
+    url: jdbc:mysql://localhost:3306/chatapp_user?useUnicode=true&characterEncoding=utf8&useSSL=false&useLegacyDatetimeCode=false&serverTimezone=UTC
+    username: root
+    password: root
   jpa:
     show-sql: true
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL5Dialect
@@ -53,3 +49,4 @@ eureka:
       defaultZone: http://localhost:22500/eureka
   instance:
     prefer-ip-address: false
+
