@@ -37,8 +37,9 @@ public class ServiceWebSecurityConfig extends WebSecurityConfigurerAdapter {
         // Entry point for this service
         http
                 .authorizeRequests()
-                .antMatchers("/**")
-                .permitAll()
+                .antMatchers("/swagger-ui.html").permitAll()
+                .antMatchers("/api").permitAll()
+                .antMatchers("/v2/api-docs").permitAll()
                 .and()
                 .authorizeRequests()
                 .anyRequest()

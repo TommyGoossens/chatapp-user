@@ -19,7 +19,7 @@ jobs:
           path: target/surefire-reports
 
       - store_artifacts:
-          path: target/chatapp-user-0.0.1-SNAPSHOT.jar
+          path: target/chatapp-user-1.0.0-RELEASE.jar
       - setup_remote_docker:
           docker_layer_caching: true
       - run:

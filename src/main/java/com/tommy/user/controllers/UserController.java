@@ -17,12 +17,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
+import springfox.documentation.annotations.ApiIgnore;
 
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
 @RequestMapping("/profile")
-@Api(value = "/profile", produces = "application/json")
+//@Api(value = "/profile", produces = "application/json")
+@Api(tags = {"Profile"})
 public class UserController {
 
 
@@ -37,44 +39,47 @@ public class UserController {
         this.restTemplate = restTemplate;
     }
 
+
+    //=======================================
+    //       Profile related methods
+    //=======================================
+
+    /**
+     * Sets the URL to the profile picture uploaded to firebase
+     * @param fileurl FireBase location
+     * @return HttpStatus OK (200)
+     */
+    @ApiOperation(value = "Update the profile picture location in the backend", tags = "Profile")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "[Profile picture updated]"),
+            @ApiResponse(code = 403, message = "[Unauthorized]"),
+            @ApiResponse(code = 404, message = "[This user does not exist]")
+    })
     @PostMapping("/picture")
+    @PreAuthorize("hasRole('ROLE_USER')")
     public ResponseEntity<?> handleFileUpload(@RequestBody String fileurl) {
-        System.out.printf("[Picture received] : %s %n ", fileurl);
-        User user = userRepo.findUserByEmail(utility.getUsername()).orElseThrow(() -> new NotExistingEntity("This user does nog exist"));
+        User user = userRepo.findUserByEmail(utility.getUsername()).orElseThrow(() -> new NotExistingEntity(utility.getUsername()));
         user.setProfilePictureLocation(fileurl);
         userRepo.save(user);
-
         restTemplate.postForEntity("http://lobby-service/userserviceimg",new UpdatePictureDTO(utility.getUsername(),fileurl),void.class);
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
-
-    @RequestMapping("/register")
-//    @PreAuthorize("hasAnyRole('ROLE_USER')")
-    public void registerUser(@RequestBody User user) {
-        userRepo.save(user);
-
-        System.out.println("[User saved] : " + user.getEmail());
-    }
-
     /**
-     * @param newUser
-     * @return
+     * Update profile information
+     * @param newUser containing the new information
+     * @return User object
      */
-    @ApiOperation(value = "Update a single user profile", response = User.class)
+    @ApiOperation(value = "Update a single user profile", tags = "Profile")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "User profile retrieved", response = User.class),
-            @ApiResponse(code = 403, message = "Unauthorized"),
-            @ApiResponse(code = 404, message = "User profile is not found"),
-            @ApiResponse(code = 500, message = "Internal server error")
-
+            @ApiResponse(code = 200, message = "[User profile retrieved]", response = User.class),
+            @ApiResponse(code = 403, message = "[Unauthorized]"),
+            @ApiResponse(code = 404, message = "[This user does not exist]")
     })
     @PutMapping
     @PreAuthorize("hasAnyRole('ROLE_USER')")
     public ResponseEntity<?> updateUserProfile(@RequestBody User newUser) {
         User user = userRepo.findUserByEmail(utility.getUsername()).orElseThrow(() -> new NotExistingEntity(utility.getUsername()));
-            if(!user.getEmail().equals(newUser.getEmail())) return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("This is not your profile");
-
         user.setFirstName(newUser.getFirstName());
         user.setLastName(newUser.getLastName());
         user.setDateOfBirth(newUser.getDateOfBirth());
@@ -85,38 +90,63 @@ public class UserController {
     }
 
     /**
-     * @return
+     * Rerieve all profile information
+     * @param email email of the user
+     * @return User object
      */
-    @ApiOperation(value = "Get a single user profile", response = User.class)
+    @ApiOperation(value = "Get a single user profile", tags = "Profile")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "User profile retrieved", response = User.class),
-            @ApiResponse(code = 403, message = "Unauthorized"),
-            @ApiResponse(code = 404, message = "User profile is not found"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(code = 200, message = "[User profile retrieved]", response = User.class),
+            @ApiResponse(code = 403, message = "[Unauthorized]"),
+            @ApiResponse(code = 404, message = "[This user does not exist]")
 
     })
-    @GetMapping
+    @GetMapping("/{email}")
     @PreAuthorize("hasAnyRole('ROLE_USER')")
-    public ResponseEntity<?> getUserProfile() {
-        User user = userRepo.findUserByEmail(utility.getUsername()).orElseThrow(() -> new NotExistingEntity(utility.getUsername()));
+    public ResponseEntity<?> getUserProfile(@PathVariable("email") String email) {
+        User user = userRepo.findUserByEmail(email).orElseThrow(() -> new NotExistingEntity(email));
         return ResponseEntity.status(HttpStatus.OK).body(user);
     }
 
+    //=======================================
+    //       Friend related methods
+    //=======================================
+
+    /**
+     * Checks if the new friend exists / not already befriended
+     * @param email which needs to be checked
+     * @return FriendAvailabilityDTO
+     */
+    @ApiOperation(value = "Check friend availability", tags = "Profile")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "[Friend can be added]", response = FriendAvailabilityDTO.class),
+            @ApiResponse(code = 403, message = "[Unauthorized]"),
+            @ApiResponse(code = 404, message = "[This user does not exist]"),
+            @ApiResponse(code = 404, message = "[This user does not exist]", response = FriendAvailabilityDTO.class)
+    })
     @GetMapping("/checkfriend/{email}")
     @PreAuthorize("hasRole('ROLE_USER')")
     public ResponseEntity<?> checkFriend(@PathVariable("email") String email) {
         User user = userRepo.findUserByEmail(utility.getUsername()).orElseThrow(() -> new NotExistingEntity(utility.getUsername()));
         if(user.isBefriended(email)) return ResponseEntity.status(HttpStatus.OK).body(new FriendAvailabilityDTO(false,String.format("You are already friends with %s",email)));
-        User friend = userRepo.findUserByEmail(email).orElse(null);
 
+        User friend = userRepo.findUserByEmail(email).orElse(null);
         if(friend == null) return ResponseEntity.status(HttpStatus.OK).body(new FriendAvailabilityDTO(false, String.format("%s does not exist",email)));
 
         return ResponseEntity.status(HttpStatus.OK).body(new FriendAvailabilityDTO(true, String.format("%s can be added!",email)));
-
-
     }
 
-
+    /**
+     * Adds a friend relationship to the database
+     * @param friendDTO object containing the email adress
+     * @return list of the current friends
+     */
+    @ApiOperation(value = "Add a friend", tags = "Profile")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "[Friend added]" ,response = User.class, responseContainer = "Set"),
+            @ApiResponse(code = 403, message = "[Unauthorized]"),
+            @ApiResponse(code = 404, message = "[This user does not exist]"),
+    })
     @PutMapping("/addfriend")
     @PreAuthorize("hasRole('ROLE_USER')")
     public ResponseEntity<?> addFriend(@RequestBody FriendDTO friendDTO) {
@@ -129,6 +159,17 @@ public class UserController {
         return ResponseEntity.status(200).body(user.getFriends());
     }
 
+    /**
+     * Removes a friend relationship from the database
+     * @param friendDTO object containing the email adress
+     * @return list of the current friends
+     */
+    @ApiOperation(value = "Remove a friend", tags = "Profile")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "[Friend removed]" ,response = User.class, responseContainer = "Set"),
+            @ApiResponse(code = 403, message = "[Unauthorized]"),
+            @ApiResponse(code = 404, message = "[This user does not exist]"),
+    })
     @PutMapping("/removefriend")
     @PreAuthorize("hasRole('ROLE_USER')")
     public ResponseEntity<?> removeFriend(@RequestBody FriendDTO friendDTO) {
@@ -139,6 +180,18 @@ public class UserController {
         return ResponseEntity.status(200).body(user.getFriends());
     }
 
+    //=======================================
+    //       Methods handling input
+    //        from other services
+    //=======================================
 
+    @ApiIgnore
+    @RequestMapping("/register")
+//    @PreAuthorize("hasAnyRole('ROLE_USER')")
+    public void registerUser(@RequestBody User user) {
+        userRepo.save(user);
+
+        System.out.println("[User saved] : " + user.getEmail());
+    }
 }
 
