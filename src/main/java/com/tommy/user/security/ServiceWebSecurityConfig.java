@@ -40,6 +40,7 @@ public class ServiceWebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers("/swagger-ui.html").permitAll()
                 .antMatchers("/api").permitAll()
                 .antMatchers("/v2/api-docs").permitAll()
+                .antMatchers("/profile/register").permitAll()
                 .and()
                 .authorizeRequests()
                 .anyRequest()
